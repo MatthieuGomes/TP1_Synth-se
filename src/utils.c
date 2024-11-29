@@ -1,7 +1,14 @@
+#include <stdarg.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
+#include <unistd.h>
+
+
+
+#include "utils.h"
 
 
 char* concat_with_necessary_end_null(char* string, ...) {
@@ -29,4 +36,26 @@ char* concat_with_necessary_end_null(char* string, ...) {
     va_end(args);
 
     return result;
+}
+int execute_command(char *command){
+    pid_t pid = fork();
+    // checks if the fork was successful OR if the process is the child
+    if(pid <= 0){
+        // checks if the fork was successful
+        if(pid < 0){
+            perror("Fork Error");
+        }
+        // checks if the successfully forked process has error during execution
+        else
+        {
+            execlp(command,command,NULL);
+            perror("Command Error");
+        }
+        exit(EXIT_FAILURE);
+    }
+    else{
+        int status;
+        waitpid(pid,&status,0);
+        return WEXITSTATUS(status); // 1 if failed, 0 if success
+    }
 }
