@@ -220,3 +220,59 @@ void print_welcome_message(){
 }
 ```
 *functions.c*
+
+### b) Exécution d’une commande simple (sans argument)
+
+Pour l'execution d'une commande simple, nous allons ajouter un fonction `execute_command` qui prend en argument la commande à executer. Nous prendrons en compte :
+* les erreurs de forking
+* les erreurs d'execution de la commande
+Nous ajouterons cette fonction à notre fichier `functions.c` et nous remplacerons l'affichage de l'input par l'execution de la commande.
+
+```c title="functions.c - execute_command()"
+int execute_command(char *command){
+    pid_t pid = fork();
+    // checks if the fork was successful OR if the process is the child
+    if(pid <= 0){
+        // checks if the fork was successful
+        if(pid < 0){
+            perror("Fork Error");
+        }
+        // checks if the successfully forked process has error during execution
+        else
+        {
+            execlp(command,command,NULL);
+            perror("Command Error");
+        }
+        exit(EXIT_FAILURE);
+    }
+    else{
+        int status;
+        waitpid(pid,&status,0);
+        // Check if the child process exited normally
+        if (!WIFEXITED(status)) {
+            print_shell("La commande à échouhé\n");
+        } 
+        return WEXITSTATUS(status); // 1 if failed, 0 if success
+    }
+}
+```
+*functions.c - execute_command()*
+
+```c title="functions.c - print_welcome_message()"
+void print_welcome_message(){
+    char input[MAX_INPUT_SIZE];
+    print_shell(concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\'\n"));
+    print_shell(prompt_message);
+    read_from_shell(input,MAX_INPUT_SIZE);
+    execute_command(input);
+}
+```
+*functions.c - print_welcome_message()*
+
+Nous avons également ajouter la fonction à notre fichier `functions.h` 
+
+```c title="functions.h"
+void print_welcome_message();
+int execute_command(char *command);
+```
+*functions.h*
