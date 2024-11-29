@@ -495,3 +495,96 @@ int execute_command(char *command);
 *utils.h*
 
 Les fichiers `functions.c` et `functions.h` ont été supprimés car ils sont vides.
+
+
+## Question 3
+
+### Gestion de la sortie de la sortie du shell par la commande 'exit'
+
+Pour gérer la sortie du shell par la commande `'exit'`, nous allons ajouter une condition dans la fonction `REPL` qui vérifie si la commande saisie vaut bien `'exit'`. Si c'est le cas, la fonction `REPL` retourne `EXIT_SUCCESS` et le programme printera le `exit_message` (Bye bye...) avant de se terminer.
+
+```c title= enseash.c - REPL()
+int REPL(){
+    while(1){
+        char input[MAX_INPUT_SIZE];
+        
+        print_shell(prompt_message);
+        read_shell(input,MAX_INPUT_SIZE);
+        if(strncmp(input,exit_command,strlen(input)) == 0 ){
+            print_shell(exit_message);
+            return EXIT_SUCCESS;
+        }
+        else{ // this else is not necessary but it is here to make the code more readable
+            int exit_code_cmd = execute_command(input);
+            if(exit_code_cmd == EXIT_FAILURE){
+                print_shell("La commande a échoué, réessayez\n");
+            }
+        }
+    }
+}
+```
+*enseash.c - REPL()*
+
+avec la definition de `exit_message` dans `enseash.c` :
+
+```c title= enseash.c - exit_message
+char exit_message[] = "Bye bye...\n";
+```
+*enseash.c - exit_message*
+
+### Gestion de la sortie de la sortie du shell par pression de 'CTRL+D'
+
+Lorsque qu'on presse `'CTRL+D'`, tenter d'afficher la sortie du read renvoie du vide, (ce qui est evidemment différent de notre `exit_command`), et le programme tente donc de lire l'input comme une commande (sans succès).  
+Cependant, l'input n'est pas pour autant vide : il est seulement remplis de caractère non traitables. Nous allons donc chercher les code ASCII de ces derniers à l'aide de printf.
+
+Une fois chose faite, nous stockons ces valeurs dans un tableau `exit_key_char` que nous castons en un tableau de char .ie un string, afin de pouvoir le comparer à l'input. Nous n'avons pas eu d'autres choix que d'utiliser des nombre magiques pour les valeurs ASCII des caractères, car rien ne semblait fonctionner.
+
+En procedant de manière analogue à la gestion de la commande `'exit'`, il suffit d'ajouter un condition avec un OU logique.
+
+La pression des touches `CTRL+D` à un comportement différent de la saisie d'une commande, il faut donc ajouter un saut de ligne dans le cas ou cette condition est vérifiée.
+
+Enfin, pour plus de clareté, nous ajoutons une variable donnant le nom de cette sortie alterntive, `exit_key_name`, pour l'incorporer à notre message de bienvenue.
+
+```c title= enseash.c - variables
+char exit_key_name[] = "CTRL+D";
+char exit_key_char[] = {61,-62,-96,1}; // (CTRL+D) Kamoulox : there is no way not to use magic numbers here ¯\_(ツ)_/¯
+// A cleaner way to do this, would be to have a map of the key names and their ascii values... but that's way to overkill.
+char exit_command[] = "exit";
+char prompt_message[] = "enseash % ";
+char exit_message[] = "Bye bye...\n";
+```
+*enseash.c -  variables*
+
+```c title= enseash.c - REPL()
+int REPL(){
+    while(1){
+        char input[MAX_INPUT_SIZE];
+        
+        print_shell(prompt_message);
+        read_shell(input,MAX_INPUT_SIZE);
+        if(strncmp(input,exit_command,strlen(input)) == 0 || strncmp(input,exit_key_char,strlen(input))==0){
+            
+            if (strncmp(input,exit_key_char,strlen(input))==0){
+                print_shell("\n"); // When using CTRL+D, the shell does not print a new line, so we do it manually
+            }
+            print_shell(exit_message);
+            return EXIT_SUCCESS;
+        }
+        else{ // this else is not necessary but it is here to make the code more readable
+            int exit_code_cmd = execute_command(input);
+            if(exit_code_cmd == EXIT_FAILURE){
+                print_shell("La commande a échoué, réessayez\n");
+            }
+        }
+    }
+}
+```
+*enseash.c - REPL()*
+
+```c title= enseash.c - main()
+int main(){
+    print_shell(concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\' ou pressez ",exit_key_name," \n"));       
+    return REPL();
+}
+```
+*enseash.c - main()*
