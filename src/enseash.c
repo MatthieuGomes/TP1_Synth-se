@@ -13,6 +13,7 @@
 
 char exit_command[] = "exit";
 char prompt_message[] = "enseash % ";
+char exit_message[] = "Bye bye...\n";
 
 int main(){
     print_shell(concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\'\n"));       
@@ -25,11 +26,15 @@ int REPL(){
         
         print_shell(prompt_message);
         read_shell(input,MAX_INPUT_SIZE);
-
-        int exit_code_cmd = execute_command(input);
-        if(exit_code_cmd == EXIT_FAILURE){
-            print_shell("La commande a échoué, réessayez\n");
+        if(strncmp(input,exit_command,strlen(input)) == 0 ){
+            print_shell(exit_message);
+            return EXIT_SUCCESS;
         }
-        
+        else{ // this else is not necessary but it is here to make the code more readable
+            int exit_code_cmd = execute_command(input);
+            if(exit_code_cmd == EXIT_FAILURE){
+                print_shell("La commande a échoué, réessayez\n");
+            }
+        }
     }
 }

@@ -495,3 +495,39 @@ int execute_command(char *command);
 *utils.h*
 
 Les fichiers `functions.c` et `functions.h` ont été supprimés car ils sont vides.
+
+
+## Question 3
+
+### Gestion de la sortie de la sortie du shell par la commande 'exit'
+
+Pour gérer la sortie du shell par la commande `'exit'`, nous allons ajouter une condition dans la fonction `REPL` qui vérifie si la commande saisie vaut bien `'exit'`. Si c'est le cas, la fonction `REPL` retourne `EXIT_SUCCESS` et le programme printera le `exit_message` (Bye bye...) avant de se terminer.
+
+```c title= enseash.c - REPL()
+int REPL(){
+    while(1){
+        char input[MAX_INPUT_SIZE];
+        
+        print_shell(prompt_message);
+        read_shell(input,MAX_INPUT_SIZE);
+        if(strncmp(input,exit_command,strlen(input)) == 0 ){
+            print_shell(exit_message);
+            return EXIT_SUCCESS;
+        }
+        else{ // this else is not necessary but it is here to make the code more readable
+            int exit_code_cmd = execute_command(input);
+            if(exit_code_cmd == EXIT_FAILURE){
+                print_shell("La commande a échoué, réessayez\n");
+            }
+        }
+    }
+}
+```
+*enseash.c - REPL()*
+
+avec la definition de `exit_message` dans `enseash.c` :
+
+```c title= enseash.c - exit_message
+char exit_message[] = "Bye bye...\n";
+```
+*enseash.c - exit_message*
