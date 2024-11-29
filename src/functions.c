@@ -20,4 +20,5 @@ void print_welcome_message(){
     print_shell(concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\'\n"));
     print_shell(prompt_message);
     read_from_shell(input,MAX_INPUT_SIZE);
+    print_shell(concat("Vous avez saisi : ",input,"\n"));
 }
