@@ -11,12 +11,16 @@
 
 #define MAX_INPUT_SIZE 1024 // Choose a maximum input size pretty large to avoid problems with large inputs
 
+char exit_key_name[] = "CTRL+D";
+char exit_key_char[] = {61,-62,-96,1}; // (CTRL+D) Kamoulox : there is no way not to use magic numbers here ¯\_(ツ)_/¯
+// A cleaner way to do this, would be to have a map of the key names and their ascii values... but that's way to overkill.
 char exit_command[] = "exit";
 char prompt_message[] = "enseash % ";
 char exit_message[] = "Bye bye...\n";
 
+
 int main(){
-    print_shell(concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\'\n"));       
+    print_shell(concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\' ou pressez ",exit_key_name," \n"));       
     return REPL();
 }
 
@@ -26,7 +30,11 @@ int REPL(){
         
         print_shell(prompt_message);
         read_shell(input,MAX_INPUT_SIZE);
-        if(strncmp(input,exit_command,strlen(input)) == 0 ){
+        if(strncmp(input,exit_command,strlen(input)) == 0 || strncmp(input,exit_key_char,strlen(input))==0){
+            
+            if (strncmp(input,exit_key_char,strlen(input))==0){
+                print_shell("\n"); // When using CTRL+D, the shell does not print a new line, so we do it manually
+            }
             print_shell(exit_message);
             return EXIT_SUCCESS;
         }
