@@ -588,3 +588,73 @@ int main(){
 }
 ```
 *enseash.c - main()*
+
+## Question 4
+
+### Modularisation du message de prompt
+
+Pour rendre le message de prompt plus modulable, nous diviser la variable global `prompt_message` en `prompt_title` et `prompt_suffix`. 
+```c title= enseash.c - variables
+
+```
+*enseash.c - variables*
+
+Par la suite, dans la fonction `REPL()` on ajoute une variable `prompt_base` et `prompt_message` au début de la boucle while. Pour répondre à la consigne, nous ajoutons également une variable `exec_infos` avant l'entrée dans la boucle while.  
+```c title= enseash.c - REPL() - first variables
+char *exec_infos=NULL;
+    
+    while(1){
+        char input[MAX_INPUT_SIZE];
+        char *prompt_base=NULL;
+        char *prompt_message=NULL;
+```
+*enseash.c - REPL() - first variables*
+
+On se retrouve face à 2 cas de figures : soit `exec_infos` est NULL, et on affiche le prompt de base, soit il contient des informations sur la dernière commande executée, et on affiche ces informations entre le titre et le suffixe du prompt. On ajoute donc une condition pour gérer ces 2 cas.
+
+```c title= enseash.c - REPL() - conditional prompt
+if(exec_infos != NULL){
+            prompt_base=concat(prompt_title," ",exec_infos);
+        }
+        else{
+            prompt_base=prompt_title;
+        }
+        prompt_message = concat(prompt_base, " ",prompt_suffix," ");
+```
+*enseash.c - REPL() - conditional prompt*
+
+### Recupération du code d'exit de la commande
+
+Pour récuperer le code de sortie des commandes lancés par notre shell, nous allons convertir la variable `exit_code_cmd` à l'aide de la fonction `sprintf()` en une chaine de caractère, pous l'integrer dans un message de la forme `[exit:<exit_code>]`.  
+Pour eviter les fuites de mémoire, nous allons liberer la mémoire allouée pour `exec_infos` en sortie de boucle while, et les autres à chaque tour de boucle avec la fonction `free()`.
+
+```c title= enseash.c - REPL() 
+prompt_message = concat(prompt_base, " ",prompt_suffix," ");
+        print_shell(prompt_message);
+        read_shell(input,MAX_INPUT_SIZE);
+        if(strncmp(input,exit_command,strlen(input)) == 0 || strncmp(input,exit_key_char,strlen(input))==0){
+            if (strncmp(input,exit_key_char,strlen(input))==0){
+                print_shell("\n"); // When using CTRL+D, the shell does not print a new line, so we do it manually
+            }
+            print_shell(exit_message);
+            return EXIT_SUCCESS;
+        }
+        else{ // this else is not necessary but it is here to make the code more readable
+            int exit_code_cmd = execute_command(input);
+            if(exit_code_cmd == EXIT_FAILURE){
+                print_shell("La commande a échoué, réessayez\n");
+            }
+            char code_as_string[]="\0";
+            sprintf(code_as_string,"%d",exit_code_cmd);
+            exec_infos = concat("[exit:",code_as_string,"]");
+        }
+        free(prompt_base);
+        free(prompt_message);
+    }
+    free(exec_infos);
+    
+
+    return EXIT_SUCCESS;
+}
+```
+*enseash.c - REPL()*
