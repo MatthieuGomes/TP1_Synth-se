@@ -5,12 +5,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-
-
 #include "utils.h"
+#define concat(...) concat_with_necessary_end_null(__VA_ARGS__, NULL) // define the macro concat to call the function concat_with_necessary_end_null with the NULL argument at the end
 
+ssize_t print_shell(char *message){
+    return write(STDOUT_FILENO, message, strlen(message));
+}
 
+ssize_t read_shell(char *input, int max_input_size){
+    ssize_t input_size = read(STDIN_FILENO,input,max_input_size);
+    // ends correctly the string with a null character to avoid any buffer overflow
+    input[input_size-1] = '\0';
+    return input_size;
+}
 char* concat_with_necessary_end_null(char* string, ...) {
 
 
@@ -37,6 +44,7 @@ char* concat_with_necessary_end_null(char* string, ...) {
 
     return result;
 }
+
 int execute_command(char *command){
     pid_t pid = fork();
     // checks if the fork was successful OR if the process is the child
@@ -58,4 +66,12 @@ int execute_command(char *command){
         waitpid(pid,&status,0);
         return WEXITSTATUS(status); // 1 if failed, 0 if success
     }
+}
+
+char * int_to_str(int number){
+    char code_as_string_ptr[] = "\0";
+    sprintf(code_as_string_ptr,"%d",number);
+    char * code_as_string= malloc(strlen(code_as_string_ptr));
+    strcpy(code_as_string,code_as_string_ptr);
+    return code_as_string;
 }

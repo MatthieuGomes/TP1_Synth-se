@@ -1,4 +1,5 @@
-#include <unistd.h>
+#include "utils.h"
 
-ssize_t read_shell(char *input, int max_input_size);
-ssize_t print_shell(char *message);
+char * generate_welcome_message(char* exit_command, char* exit_key_name);
+char * generate_prompt_infos(int exit_code);
+char * generate_prompt_message(char* prompt_title, char* prompt_suffix,char* prompt_infos);

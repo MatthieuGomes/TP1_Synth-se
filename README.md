@@ -658,3 +658,222 @@ prompt_message = concat(prompt_base, " ",prompt_suffix," ");
 }
 ```
 *enseash.c - REPL()*
+
+## Reorganisation des fichiers
+
+Au vue de la façon dont le code s'annonce, il pourrait être pertinent de reorganiser un peu le code.
+
+pour cela, nous allons :
+1. renommer `exec_infos` en `prompt_infos` serait plus coherent
+2. deplacer les fonctions `write_shell` et `read_shell` dans `utils.c`
+3. encapsuler la conversion de int en string dans une fonction `int_to_str`
+4. deplacer la fonction `int_to_str` dans `utils.c`
+5. encapusler la construction de`prompt_message` dans une fonction `generate_prompt_message`
+6. ecapsuler la construction du `welcome_message` dans une fonction `generate_welcome_message`
+7. encapsuler la generation du `prompt_infos` dans une fonction `generate_prompt_infos`
+8. deplacer les 3 nouvelles fonctions et leur variables globales associés dans `shell_utils.c`
+
+Voici les nouveaux codes, en commençant par les `*.h` :
+
+```c title= shell_utils.h
+#include "utils.h"
+
+char * generate_welcome_message(char* exit_command, char* exit_key_name);
+char * generate_prompt_infos(int exit_code);
+char * generate_prompt_message(char *prompt_infos);
+```
+*shell_utils.h*
+
+```c title= utils.h
+#include <string.h>
+
+ssize_t read_shell(char *input, int max_input_size);
+ssize_t print_shell(char *message);
+char * concat_with_necessary_end_null(char * string, ...);
+int execute_command(char *command);
+char * int_to_str(int number);
+```
+*utils.h*
+
+Esuite, regardons le fichier `enseash.c` :
+
+```c title= enseash.c - main() & variables
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "enseash.h"
+
+#include "shell_utils.h"
+#include "utils.h"
+
+#define MAX_INPUT_SIZE 1024 // Choose a maximum input size pretty large to avoid problems with large inputs
+
+char prompt_title[] = "enseash";
+char prompt_suffix[] = "%";
+
+char exit_key_name[] = "CTRL+D";
+char exit_key_char[] = {61,-62,-96,1}; // (CTRL+D) Kamoulox : there is no way not to use magic numbers here ¯\_(ツ)_/¯
+// A cleaner way to do this, would be to have a map of the key names and their ascii values... but that's way to overkill.
+char exit_command[] = "exit";
+char exit_message[] = "Bye bye...\n";
+
+
+int main(){
+    print_shell(generate_welcome_message(exit_command,exit_key_name));       
+    return REPL();
+}
+```
+*enseash.c - main() & variables*
+
+J'ai du utiliser des `char *` plutot des que des `char[]` pour les variables recevant le resultat d'une fonction car ces dernières renvoie des `char *` et non des `char[]`
+
+```c title= enseash.c - REPL()
+int REPL(){
+    char *prompt_infos=NULL;
+    
+    while(1){
+        char input[MAX_INPUT_SIZE];
+        char * prompt_message=generate_prompt_message(prompt_title,prompt_suffix,prompt_infos);
+        print_shell(prompt_message);
+        read_shell(input,MAX_INPUT_SIZE);
+        if(strncmp(input,exit_command,strlen(input)) == 0 || strncmp(input,exit_key_char,strlen(input))==0){
+            if (strncmp(input,exit_key_char,strlen(input))==0){
+                print_shell("\n"); // When using CTRL+D, the shell does not print a new line, so we do it manually
+            }
+            print_shell(exit_message);
+            return EXIT_SUCCESS;
+        }
+        else{ // this else is not necessary but it is here to make the code more readable
+            int exit_code_cmd = execute_command(input);
+            if(exit_code_cmd == EXIT_FAILURE){
+                print_shell("La commande a échoué, réessayez\n");
+            }
+            prompt_infos = generate_prompt_infos(exit_code_cmd);
+        }
+    }
+    free(prompt_infos);
+    return EXIT_SUCCESS;
+}
+```
+*enseash.c - REPL()*
+
+Et enfin, le fichier `shell_utils.c` :
+
+```c title= shell_utils.c
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include "utils.h"
+#define concat(...) concat_with_necessary_end_null(__VA_ARGS__, NULL) // define the macro concat to call the function concat_with_necessary_end_null with the NULL argument at the end
+
+
+
+
+char * generate_welcome_message(char* exit_command, char* exit_key_name){
+    return concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\' ou \'",exit_key_name,"\' \n");
+}
+
+char * generate_prompt_infos(int exit_code){
+    return concat("[exit:",int_to_str(exit_code),"]");
+}
+
+char * generate_prompt_message(char* prompt_title, char* prompt_suffix,char* prompt_infos){
+    char *prompt_base_ptr=NULL;
+    if(prompt_infos != NULL){
+        prompt_base_ptr=concat(prompt_title," ",prompt_infos);
+    }
+    else{
+        prompt_base_ptr=prompt_title;
+    }
+    char prompt_base[strlen(prompt_base_ptr)];
+    strcpy(prompt_base,prompt_base_ptr);
+    return concat(prompt_base, " ",prompt_suffix," ");
+}
+```
+*shell_utils.c*
+
+Et utils.c :
+
+```c title= utils.c
+#include <stdarg.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include "utils.h"
+#define concat(...) concat_with_necessary_end_null(__VA_ARGS__, NULL) // define the macro concat to call the function concat_with_necessary_end_null with the NULL argument at the end
+
+ssize_t print_shell(char *message){
+    return write(STDOUT_FILENO, message, strlen(message));
+}
+
+ssize_t read_shell(char *input, int max_input_size){
+    ssize_t input_size = read(STDIN_FILENO,input,max_input_size);
+    // ends correctly the string with a null character to avoid any buffer overflow
+    input[input_size-1] = '\0';
+    return input_size;
+}
+char* concat_with_necessary_end_null(char* string, ...) {
+
+
+    va_list args; // list of arguments
+    va_start(args, string); // start to read the arguments : args by args readable in the variable called string 
+    
+    size_t total_length = strlen(string);
+    char* current;
+    while ((current = va_arg(args, char*)) != NULL) {
+        total_length += strlen(current);
+    }
+    va_end(args); // end of the reading of the arguments
+
+    char* result = (char*)malloc(total_length + 1);
+
+    result[0] = '\0'; 
+    strcat(result, string); // start filling the result with the first string
+
+    va_start(args, string); // going again to throught the arguments
+    while ((current = va_arg(args, char*)) != NULL) {
+        strcat(result, current);
+    }
+    va_end(args);
+
+    return result;
+}
+
+int execute_command(char *command){
+    pid_t pid = fork();
+    // checks if the fork was successful OR if the process is the child
+    if(pid <= 0){
+        // checks if the fork was successful
+        if(pid < 0){
+            perror("Fork Error");
+        }
+        // checks if the successfully forked process has error during execution
+        else
+        {
+            execlp(command,command,NULL);
+            perror("Command Error");
+        }
+        exit(EXIT_FAILURE);
+    }
+    else{
+        int status;
+        waitpid(pid,&status,0);
+        return WEXITSTATUS(status); // 1 if failed, 0 if success
+    }
+}
+
+char * int_to_str(int number){
+    char code_as_string_ptr[] = "\0";
+    sprintf(code_as_string_ptr,"%d",number);
+    char * code_as_string= malloc(strlen(code_as_string_ptr));
+    strcpy(code_as_string,code_as_string_ptr);
+    return code_as_string;
+}
+```
+*utils.c*
+

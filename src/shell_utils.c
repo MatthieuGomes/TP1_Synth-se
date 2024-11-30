@@ -2,15 +2,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "shell_utils.h"
+#include "utils.h"
+#define concat(...) concat_with_necessary_end_null(__VA_ARGS__, NULL) // define the macro concat to call the function concat_with_necessary_end_null with the NULL argument at the end
 
-ssize_t print_shell(char *message){
-    return write(STDOUT_FILENO, message, strlen(message));
+
+
+
+char * generate_welcome_message(char* exit_command, char* exit_key_name){
+    return concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\' ou \'",exit_key_name,"\' \n");
 }
 
-ssize_t read_shell(char *input, int max_input_size){
-    ssize_t input_size = read(STDIN_FILENO,input,max_input_size);
-    // ends correctly the string with a null character to avoid any buffer overflow
-    input[input_size-1] = '\0';
-    return input_size;
+char * generate_prompt_infos(int exit_code){
+    return concat("[exit:",int_to_str(exit_code),"]");
+}
+
+char * generate_prompt_message(char* prompt_title, char* prompt_suffix,char* prompt_infos){
+    char *prompt_base_ptr=NULL;
+    if(prompt_infos != NULL){
+        prompt_base_ptr=concat(prompt_title," ",prompt_infos);
+    }
+    else{
+        prompt_base_ptr=prompt_title;
+    }
+    char prompt_base[strlen(prompt_base_ptr)];
+    strcpy(prompt_base,prompt_base_ptr);
+    return concat(prompt_base, " ",prompt_suffix," ");
 }
