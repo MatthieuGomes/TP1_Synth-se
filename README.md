@@ -534,39 +534,15 @@ char exit_message[] = "Bye bye...\n";
 
 ### Gestion de la sortie de la sortie du shell par pression de 'CTRL+D'
 
-Lorsque qu'on presse `'CTRL+D'`, tenter d'afficher la sortie du read renvoie du vide, (ce qui est evidemment différent de notre `exit_command`), et le programme tente donc de lire l'input comme une commande (sans succès).  
-Cependant, l'input n'est pas pour autant vide : il est seulement remplis de caractère non traitables. Nous allons donc chercher les code ASCII de ces derniers à l'aide de printf.
+Tout d'abord, il faut s'assurer que l'input est bien vide à la fin de chaque input de l'utilisateur. Pour ce faire, nous modifions le type de input pour passer à un pointeur, plus simple à modifier, mais nous lui allouons la même taille que son homologue char[]. Pour finir, à la fin de la boucle, nous settons input à NULL.
 
-Une fois chose faite, nous stockons ces valeurs dans un tableau `exit_key_char` que nous castons en un tableau de char .ie un string, afin de pouvoir le comparer à l'input. Nous n'avons pas eu d'autres choix que d'utiliser des nombre magiques pour les valeurs ASCII des caractères, car rien ne semblait fonctionner.
-
-En procedant de manière analogue à la gestion de la commande `'exit'`, il suffit d'ajouter un condition avec un OU logique.
-
-La pression des touches `CTRL+D` à un comportement différent de la saisie d'une commande, il faut donc ajouter un saut de ligne dans le cas ou cette condition est vérifiée.
-
-Enfin, pour plus de clareté, nous ajoutons une variable donnant le nom de cette sortie alterntive, `exit_key_name`, pour l'incorporer à notre message de bienvenue.
-
-```c title= enseash.c - variables
-char exit_key_name[] = "CTRL+D";
-char exit_key_char[] = {61,-62,-96,1}; // (CTRL+D) Kamoulox : there is no way not to use magic numbers here ¯\_(ツ)_/¯
-// A cleaner way to do this, would be to have a map of the key names and their ascii values... but that's way to overkill.
-char exit_command[] = "exit";
-char prompt_message[] = "enseash % ";
-char exit_message[] = "Bye bye...\n";
-```
-*enseash.c -  variables*
-
-```c title= enseash.c - REPL()
-int REPL(){
-    while(1){
-        char input[MAX_INPUT_SIZE];
-        
+```c title= enseash.c - REPL() - while loop
+while(1){
+        char * input =malloc(MAX_INPUT_SIZE);
+        char * prompt_message=generate_prompt_message(prompt_title,prompt_suffix,prompt_infos);
         print_shell(prompt_message);
         read_shell(input,MAX_INPUT_SIZE);
-        if(strncmp(input,exit_command,strlen(input)) == 0 || strncmp(input,exit_key_char,strlen(input))==0){
-            
-            if (strncmp(input,exit_key_char,strlen(input))==0){
-                print_shell("\n"); // When using CTRL+D, the shell does not print a new line, so we do it manually
-            }
+        if(strncmp(input,exit_command,strlen(input)) == 0){
             print_shell(exit_message);
             return EXIT_SUCCESS;
         }
@@ -575,19 +551,38 @@ int REPL(){
             if(exit_code_cmd == EXIT_FAILURE){
                 print_shell("La commande a échoué, réessayez\n");
             }
+            prompt_infos = generate_prompt_infos(exit_code_cmd);
         }
+        input=NULL;
     }
-}
 ```
-*enseash.c - REPL()*
 
-```c title= enseash.c - main()
-int main(){
-    print_shell(concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\' ou pressez ",exit_key_name," \n"));       
-    return REPL();
+Lorsque l'on presse `CTRL+D`, l'input est vide... Et c'est partie à cause de notre fonction `read_shell` mais nous allons l'utiliser à notre avantage : 
+- Lorsque l'on entre Enter avec une chaine vide, `read_shell` retourne 1 mais l'input est vide.
+- lorsque l'on entre `CTRL+D`, `read_shell` retourne 0 et l'input est vide. En effet, `CTRL+D` est un signal de fin de fichier, donc le caractère mis en input est `\0` : le string est donc de taille nul. 
+
+La transformation que nous avons effectué pour s'assurer que l'input se terminait correctement (et non par un `\n`) nous permet de verifier si l'input reelement est vide (CTRL+D) ou si sa longueur réel est non nul (Enter avec chaine vide). 
+
+Nous utiliserons donc cette propriété pour detecter `CTRL+D` et par la même occasion, traiterons le cas de la chaine vide.
+
+
+
+```c title= enseash.c - REPL() - detection of CTRL+D and Enter
+print_shell(prompt_message);
+ssize_t input_size=read_shell(input,MAX_INPUT_SIZE);
+if(strcmp(input,"\0")==0&&input_size!=0){
+    continue;
+}
+else if(strncmp(input,exit_command,strlen(input)) == 0 || input_size==0){
+    if (input_size==0){
+        print_shell("\n"); // When using CTRL+D, the shell does not print a new line, so we do it manually
+    }
+    print_shell(exit_message);
+    return EXIT_SUCCESS;
 }
 ```
-*enseash.c - main()*
+```
+*enseash.c - REPL() - detection of CTRL+D and Enter*
 
 ## Question 4
 
