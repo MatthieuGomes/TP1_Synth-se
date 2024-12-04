@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include "utils.h"
 #define concat(...) concat_with_necessary_end_null(__VA_ARGS__, NULL) // define the macro concat to call the function concat_with_necessary_end_null with the NULL argument at the end
+#define KILL_SIGNAL 9
+
 
 ssize_t print_shell(char *message){
     return write(STDOUT_FILENO, message, strlen(message));
@@ -45,7 +47,7 @@ char* concat_with_necessary_end_null(char* string, ...) {
     return result;
 }
 
-int execute_command(char *command){
+int * execute_command(char *command){
     pid_t pid = fork();
     // checks if the fork was successful OR if the process is the child
     if(pid <= 0){
@@ -56,15 +58,33 @@ int execute_command(char *command){
         // checks if the successfully forked process has error during execution
         else
         {
-            execlp(command,command,NULL);
-            perror("Command Error");
+            pid_t current_pid = getpid();
+            if(strcmp(command,"signal9")==0){
+                kill(current_pid,KILL_SIGNAL);
+            }
+            else{
+                execlp(command,command,NULL);
+                perror("Command Error");
+            }
+            
         }
         exit(EXIT_FAILURE);
     }
     else{
         int status;
         waitpid(pid,&status,0);
-        return WEXITSTATUS(status); // 1 if failed, 0 if success
+        int code;
+        int is_signaled = WIFSIGNALED(status);
+        if(is_signaled){
+            code = WTERMSIG(status);
+        }
+        else{
+            code = WEXITSTATUS(status);
+        }
+        int * response = malloc(sizeof(code)+sizeof(is_signaled));
+        response[0] = is_signaled; 
+        response[1] = code;
+        return response;
     }
 }
 

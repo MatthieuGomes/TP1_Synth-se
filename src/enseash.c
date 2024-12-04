@@ -6,6 +6,7 @@
 
 #include "shell_utils.h"
 #include "utils.h"
+#include <unistd.h>
 
 #define MAX_INPUT_SIZE 1024 // Choose a maximum input size pretty large to avoid problems with large inputs
 
@@ -43,11 +44,11 @@ int REPL(){
             return EXIT_SUCCESS;
         }
         else{ // this else is not necessary but it is here to make the code more readable
-            int exit_code_cmd = execute_command(input);
-            if(exit_code_cmd == EXIT_FAILURE){
+            int * cmd_response = execute_command(input);
+            if(cmd_response[1] == EXIT_FAILURE){
                 print_shell("La commande a échoué, réessayez\n");
             }
-            prompt_infos = generate_prompt_infos(exit_code_cmd);
+            prompt_infos = generate_prompt_infos(cmd_response);
         }
     }
     free(prompt_infos);

@@ -12,8 +12,18 @@ char * generate_welcome_message(char* exit_command, char* exit_key_name){
     return concat("Bienvenue dans le Shell ENSEA.\nPour quitter, tapez \'", exit_command,"\' ou \'",exit_key_name,"\' \n");
 }
 
-char * generate_prompt_infos(int exit_code){
-    return concat("[exit:",int_to_str(exit_code),"]");
+char * generate_prompt_infos(int * cmd_response){
+
+    int code = cmd_response[1];
+    int is_signaled = cmd_response[0];
+    char * info_type;
+    if(is_signaled){
+        info_type = "sign";
+    }
+    else{
+        info_type = "code";
+    }
+    return concat("[",info_type,":",int_to_str(code),"]");
 }
 
 char * generate_prompt_message(char* prompt_title, char* prompt_suffix,char* prompt_infos){

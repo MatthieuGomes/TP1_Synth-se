@@ -654,7 +654,7 @@ prompt_message = concat(prompt_base, " ",prompt_suffix," ");
 ```
 *enseash.c - REPL()*
 
-## Reorganisation des fichiers
+### Reorganisation des fichiers
 
 Au vue de la façon dont le code s'annonce, il pourrait être pertinent de reorganiser un peu le code.
 
@@ -871,4 +871,112 @@ char * int_to_str(int number){
 }
 ```
 *utils.c*
+
+### Récupération du signal d'exit
+
+Provoquer moi même un signal d'interruption pour tester cette nouvelle fonctionnalité, je vais assigner à la commande  `signal9` la tache de kill le processus enfant avec le signal `9` = `KILL_SIGNAL`  dans `execute_command`. 
+
+```c title= enseash.c - execute_command()
+{
+    pid_t current_pid = getpid();
+    if(strcmp(command,"signal9")==0){
+        kill(current_pid,KILL_SIGNAL);
+    }
+    else{
+        execlp(command,command,NULL);
+        perror("Command Error");
+    }            
+}
+```
+*enseash.c - execute_command()*
+
+Une fois ceci-fait, on doit traiter différement le status du processus en fonction de s'il s'est terminé normalement ou s'il a été interrompu par un signal. Pour se faire, on utilise la fonction `WIFSIGNALED(status)` qui retourne vrai si le processus s'est terminé à cause d'un signal. Si c'est le cas, on renvoie le numéro du signal qui a interrompu le processus avec `WTERMSIG(status)`. 
+```c title= utils.c - execute_command()
+int status;
+waitpid(pid,&status,0);
+int code;
+int is_signaled = WIFSIGNALED(status);
+if(is_signaled){
+    code = WTERMSIG(status);
+}
+else{
+    code = WEXITSTATUS(status);
+}
+```
+*utils.c - execute_command()*
+
+Il est toutefois impossible dans l'état actuelle de déterminer si la sortie est un signal ou un exit code. On va donc changer la sortie en un array de int : 
+- le premier élement determinera s'il s'agit d'un signal ou d'un exit code (0 pour exit code, 1 pour signal)
+- le second contiendra le code ou signal
+
+Il faut donc aussi modifier la fonction de génération de prompt_infos pour prendre en compte ce changement et des changements adaptés pour les fonctions qui les appellent. 
+
+```c title= utils.c - execute_command()
+int status;
+waitpid(pid,&status,0);
+int code;
+int is_signaled = WIFSIGNALED(status);
+if(is_signaled){
+    code = WTERMSIG(status);
+}
+else{
+    code = WEXITSTATUS(status);
+}
+int * response = malloc(sizeof(code)+sizeof(is_signaled));
+response[0] = is_signaled; 
+response[1] = code;
+return response;
+```
+*utils.c - execute_command()*
+
+```c title= shell_utils.c - generate_prompt_infos()
+char * generate_prompt_infos(int * cmd_response){
+
+    int code = cmd_response[1];
+    int is_signaled = cmd_response[0];
+    char * info_type;
+    if(is_signaled){
+        info_type = "sign";
+    }
+    else{
+        info_type = "code";
+    }
+    return concat("[",info_type,":",int_to_str(code),"]");
+}
+```
+*shell_utils.c - generate_prompt_infos()*
+
+```c title= enseash.c - REPL()
+else{ // this else is not necessary but it is here to make the code more readable
+            int * cmd_response = execute_command(input);
+            if(cmd_response[1] == EXIT_FAILURE){
+                print_shell("La commande a échoué, réessayez\n");
+            }
+            prompt_infos = generate_prompt_infos(cmd_response);
+        }
+```
+*enseash.c - REPL()*
+
+et pour finir, les nouvelle signatures des fonctions dans les `*.h` :
+
+```c title= shell_utils.h
+#include "utils.h"
+
+char * generate_welcome_message(char* exit_command, char* exit_key_name);
+char * generate_prompt_infos(int * cmd_response);
+char * generate_prompt_message(char* prompt_title, char* prompt_suffix,char* prompt_infos);7
+```
+*shell_utils.h*
+
+```c title= utils.h
+#include <string.h>
+
+ssize_t read_shell(char *input, int max_input_size);
+ssize_t print_shell(char *message);
+char * concat_with_necessary_end_null(char * string, ...);
+int * execute_command(char *command);
+char * int_to_str(int number);
+```
+*utils.h*
+
 
