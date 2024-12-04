@@ -14,8 +14,9 @@ char * generate_welcome_message(char* exit_command, char* exit_key_name){
 
 char * generate_prompt_infos(int * cmd_response){
 
-    int code = cmd_response[1];
     int is_signaled = cmd_response[0];
+    int code = cmd_response[1];
+    int time_elapsed_ms = cmd_response[2];
     char * info_type;
     if(is_signaled){
         info_type = "sign";
@@ -23,7 +24,7 @@ char * generate_prompt_infos(int * cmd_response){
     else{
         info_type = "code";
     }
-    return concat("[",info_type,":",int_to_str(code),"]");
+    return concat("[",info_type,":",int_to_str(code),"|",int_to_str(time_elapsed_ms),"ms","]");
 }
 
 char * generate_prompt_message(char* prompt_title, char* prompt_suffix,char* prompt_infos){

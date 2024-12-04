@@ -6,8 +6,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "utils.h"
+#include <time.h>
 #define concat(...) concat_with_necessary_end_null(__VA_ARGS__, NULL) // define the macro concat to call the function concat_with_necessary_end_null with the NULL argument at the end
 #define KILL_SIGNAL 9
+
 
 
 ssize_t print_shell(char *message){
@@ -48,6 +50,10 @@ char* concat_with_necessary_end_null(char* string, ...) {
 }
 
 int * execute_command(char *command){
+    struct timespec start, end;
+    long seconds, nanoseconds;
+    int time_elapsed_ms;
+    clock_gettime(CLOCK_MONOTONIC, &start);
     pid_t pid = fork();
     // checks if the fork was successful OR if the process is the child
     if(pid <= 0){
@@ -81,9 +87,18 @@ int * execute_command(char *command){
         else{
             code = WEXITSTATUS(status);
         }
-        int * response = malloc(sizeof(code)+sizeof(is_signaled));
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        seconds = end.tv_sec - start.tv_sec;
+        nanoseconds = end.tv_nsec - start.tv_nsec;
+        if (nanoseconds < 0) {
+        seconds -= 1;
+        nanoseconds += 1000000000;
+        }
+        time_elapsed_ms = seconds + nanoseconds * 1e-6;
+        int * response = malloc(sizeof(code)+sizeof(is_signaled)+sizeof(time_elapsed_ms));
         response[0] = is_signaled; 
         response[1] = code;
+        response[2] = time_elapsed_ms;
         return response;
     }
 }
