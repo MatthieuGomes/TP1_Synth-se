@@ -979,3 +979,84 @@ char * int_to_str(int number);
 ```
 *utils.h*
 
+## Question 5
+
+Pour trouver le temps d'execution d'une commande, on va definr 2 struct `timespec` (`start` et `end`) qui seront initialisez avec la fonction `clock_gettime` avant et après l'execution de la commande. On défini egalement 1 variable `seconds` et `nanoseconds` pour stocker le temps d'execution car les struct précédement evoqués fournissent ces 2 informations.   
+Enfin on fait la différence entre les 2 temps pour obtenir le temps d'execution et on convertie ce temps en ms dans la variable `time_elapsed_ms`.  
+Par la suite, on ajoute ce temps en ms à la variable de retour après les 2 premiers élements (`code` et `is_signaled`) et on retourne le tout. 
+
+```c title= utils.c - execute_command()
+int * execute_command(char *command){
+    struct timespec start, end;
+    long seconds, nanoseconds;
+    int time_elapsed_ms;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    pid_t pid = fork();
+    // checks if the fork was successful OR if the process is the child
+    if(pid <= 0){
+        // checks if the fork was successful
+        if(pid < 0){
+            perror("Fork Error");
+        }
+        // checks if the successfully forked process has error during execution
+        else
+        {
+            pid_t current_pid = getpid();
+            if(strcmp(command,"signal9")==0){
+                kill(current_pid,KILL_SIGNAL);
+            }
+            else{
+                execlp(command,command,NULL);
+                perror("Command Error");
+            }
+            
+        }
+        exit(EXIT_FAILURE);
+    }
+    else{
+        int status;
+        waitpid(pid,&status,0);
+        int code;
+        int is_signaled = WIFSIGNALED(status);
+        if(is_signaled){
+            code = WTERMSIG(status);
+        }
+        else{
+            code = WEXITSTATUS(status);
+        }
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        seconds = end.tv_sec - start.tv_sec;
+        nanoseconds = end.tv_nsec - start.tv_nsec;
+        if (nanoseconds < 0) {
+        seconds -= 1;
+        nanoseconds += 1000000000;
+        }
+        time_elapsed_ms = seconds + nanoseconds * 1e-6;
+        int * response = malloc(sizeof(code)+sizeof(is_signaled)+sizeof(time_elapsed_ms));
+        response[0] = is_signaled; 
+        response[1] = code;
+        response[2] = time_elapsed_ms;
+        return response;
+    }
+}
+```
+*utils.c - execute_command()*
+Pour correctement afficher cette nouvelle information, on va modifier la fonction `generate_prompt_infos` pour prendre en compte ce nouveau temps d'execution. 
+
+```c title= shell_utils.c - generate_prompt_infos()
+char * generate_prompt_infos(int * cmd_response){
+
+    int is_signaled = cmd_response[0];
+    int code = cmd_response[1];
+    int time_elapsed_ms = cmd_response[2];
+    char * info_type;
+    if(is_signaled){
+        info_type = "sign";
+    }
+    else{
+        info_type = "code";
+    }
+    return concat("[",info_type,":",int_to_str(code),"|",int_to_str(time_elapsed_ms),"ms","]");
+}
+```
+*shell_utils.c - generate_prompt_infos()*
