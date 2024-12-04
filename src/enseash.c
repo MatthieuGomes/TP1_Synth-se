@@ -29,10 +29,12 @@ int REPL(){
         char input[MAX_INPUT_SIZE];
         
         print_shell(prompt_message);
-        read_shell(input,MAX_INPUT_SIZE);
-        if(strncmp(input,exit_command,strlen(input)) == 0 || strncmp(input,exit_key_char,strlen(input))==0){
-            
-            if (strncmp(input,exit_key_char,strlen(input))==0){
+        ssize_t input_size=read_shell(input,MAX_INPUT_SIZE);
+        if(strcmp(input,"\0")==0&&input_size!=0){
+            continue;
+        }
+        else if(strncmp(input,exit_command,strlen(input)) == 0 || input_size==0){
+            if (input_size==0){
                 print_shell("\n"); // When using CTRL+D, the shell does not print a new line, so we do it manually
             }
             print_shell(exit_message);
